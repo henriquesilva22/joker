@@ -14,3 +14,4 @@ next-env.d.ts
 /public/workbox-*.js.map
 .DS_Store
 .vercel
+.claude/

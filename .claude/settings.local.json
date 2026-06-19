@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "PowerShell(git add -A)",
-      "PowerShell(git push 2>&1)"
-    ]
-  }
-}
