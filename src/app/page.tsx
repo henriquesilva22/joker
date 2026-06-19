@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Aviso } from "@/components/Aviso";
+import { AuthButton } from "@/components/AuthButton";
 import { LISTA_LOTERIAS } from "@/lib/lotteries";
 import { formatarUmEm, chancePrincipal } from "@/lib/stats/probability";
 
@@ -7,13 +8,16 @@ import { formatarUmEm, chancePrincipal } from "@/lib/stats/probability";
 export default function Dashboard() {
   return (
     <div className="space-y-5">
-      <header>
-        <h1 className="text-3xl font-extrabold tracking-tight">
-          Sorte<span className="text-brand-light">IA</span>
-        </h1>
-        <p className="text-sm text-slate-400">
-          Previsao estatistica com IA que aprende com os erros.
-        </p>
+      <header className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight">
+            Sorte<span className="text-brand-light">IA</span>
+          </h1>
+          <p className="text-sm text-slate-400">
+            Previsao estatistica com IA que aprende com os erros.
+          </p>
+        </div>
+        <AuthButton />
       </header>
 
       <Aviso />

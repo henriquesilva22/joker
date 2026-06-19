@@ -1,7 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-// Mantem a sessao do Supabase atualizada em cada request.
+// Rotas que exigem login. As demais (home, gerar, backtesting, estatisticas)
+// permanecem publicas.
+const ROTAS_PROTEGIDAS = ["/jogos", "/previsoes", "/historico", "/dashboard"];
+
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -24,7 +27,20 @@ export async function middleware(request: NextRequest) {
     },
   );
 
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const path = request.nextUrl.pathname;
+  const protegida = ROTAS_PROTEGIDAS.some((p) => path.startsWith(p));
+
+  if (protegida && !user) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("redirect", path);
+    return NextResponse.redirect(url);
+  }
+
   return response;
 }
 

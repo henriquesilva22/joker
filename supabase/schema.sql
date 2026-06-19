@@ -172,3 +172,16 @@ create policy "backtests_read" on public.backtests
 drop policy if exists "backtests_write" on public.backtests;
 create policy "backtests_write" on public.backtests
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- =====================================================================
+-- GRANTS (necessarios alem da RLS: liberam o acesso a tabela por papel)
+-- =====================================================================
+grant usage on schema public to anon, authenticated;
+grant select on public.loterias  to anon, authenticated;
+grant select on public.concursos to anon, authenticated;
+grant select on public.pesos_ia to anon, authenticated;
+grant insert, update, delete on public.pesos_ia to authenticated;
+grant select, insert, update, delete on public.previsoes            to authenticated;
+grant select, insert, update, delete on public.resultados_previsoes to authenticated;
+grant select, insert, update, delete on public.backtests            to authenticated;
+grant usage, select on all sequences in schema public to authenticated;
