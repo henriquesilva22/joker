@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
+}
+
+html,
+body {
+  background: #0b1120;
+  color: #e2e8f0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl bg-ink-soft/70 border border-white/5 p-4 shadow-lg;
+  }
+  .btn {
+    @apply rounded-xl px-4 py-2.5 font-semibold transition active:scale-95 disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-brand text-white hover:bg-brand-dark;
+  }
+  .btn-ghost {
+    @apply btn bg-white/5 text-slate-200 hover:bg-white/10;
+  }
+  .bola {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold;
+  }
+}
