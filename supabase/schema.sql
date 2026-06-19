@@ -84,7 +84,7 @@ create table if not exists public.resultados_previsoes (
   ganhou           boolean not null default false,
   analise_erro     jsonb,                       -- diagnostico estruturado
   ajuste_sugerido  jsonb,                       -- delta de pesos aplicado
-  explicacao_ia    text,                        -- texto gerado pela Claude API
+  explicacao_ia    text,                        -- explicacao gerada localmente
   conferido_em     timestamptz not null default now(),
   unique (previsao_id)
 );

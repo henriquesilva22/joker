@@ -4,7 +4,7 @@ import { carregarConcursos, carregarPesos, salvarPesos } from "@/lib/data";
 import { getLoteria } from "@/lib/lotteries";
 import { conferir } from "@/lib/stats/check";
 import { aplicarAjuste, diffPesos } from "@/lib/stats/learn";
-import { explicarAnalise } from "@/lib/claude";
+import { explicarAnalise } from "@/lib/explicacao";
 import type { LoteriaId } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -66,24 +66,17 @@ export async function POST(req: Request) {
     await salvarPesos(sb, loteria.id, auth.user.id, pesosNovos);
     const delta = diffPesos(pesosAtuais, pesosNovos);
 
-    // ----- Explicacao da IA (Claude) - opcional, nao bloqueia em caso de erro -----
-    let explicacao = "";
-    try {
-      if (process.env.ANTHROPIC_API_KEY) {
-        const idxMelhor = conf.acertos_por_jogo.indexOf(conf.melhor_acerto);
-        explicacao = await explicarAnalise({
-          loteria,
-          resultadoReal: conf.resultado_real,
-          melhorJogo: (prev.jogos_gerados as number[][])[idxMelhor] ?? [],
-          melhorAcerto: conf.melhor_acerto,
-          ganhou: conf.ganhou,
-          analise: conf.analise_erro,
-          ajuste: conf.ajuste_sugerido,
-        });
-      }
-    } catch {
-      explicacao = "";
-    }
+    // ----- Explicacao da IA (gerada localmente a partir do diagnostico) -----
+    const idxMelhor = conf.acertos_por_jogo.indexOf(conf.melhor_acerto);
+    const explicacao = explicarAnalise({
+      loteria,
+      resultadoReal: conf.resultado_real,
+      melhorJogo: (prev.jogos_gerados as number[][])[idxMelhor] ?? [],
+      melhorAcerto: conf.melhor_acerto,
+      ganhou: conf.ganhou,
+      analise: conf.analise_erro,
+      ajuste: conf.ajuste_sugerido,
+    });
 
     // ----- Persiste o resultado da conferencia -----
     const { error: e2 } = await sb.from("resultados_previsoes").upsert(

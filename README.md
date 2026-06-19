@@ -13,7 +13,7 @@ próprios pesos.
 - **Tailwind CSS** + PWA instalável (`next-pwa`)
 - **Supabase** (Postgres + Auth + RLS)
 - **Recharts** (gráficos de pesos)
-- **Claude API** (`@anthropic-ai/sdk`) para as explicações da IA
+- Explicações da IA geradas **localmente** a partir do diagnóstico estatístico (sem API externa)
 - **Vercel** + Cron Job (atualização automática de resultados)
 
 ## Loterias suportadas
@@ -35,7 +35,7 @@ src/
 │  └─ api/
 │     ├─ gerar/                 # POST  gera jogos
 │     ├─ previsoes/             # GET/POST  lista/salva previsões
-│     ├─ conferir/              # POST  confere + aprende + ajusta pesos + Claude
+│     ├─ conferir/              # POST  confere + aprende + ajusta pesos + explica
 │     ├─ backtest/              # POST  backtest walk-forward
 │     ├─ pesos/                 # GET/DELETE  lê/reseta pesos da IA
 │     ├─ importar/              # POST  backfill de histórico (Caixa)
@@ -75,8 +75,9 @@ os jogos). Modos: `conservador`, `equilibrado`, `agressivo` e `IA adaptativa`.
 
 Ao conferir (`/api/conferir`): conta acertos → diagnostica o erro (faixas
 faltantes, soma, pares, atrasados vs frequentes) → gera um **delta de pesos** →
-aplica com taxa de aprendizado e clamp `[0.1, 3.0]` → salva → a Claude API escreve
-a explicação em linguagem natural. A próxima geração já usa os pesos calibrados.
+aplica com taxa de aprendizado e clamp `[0.1, 3.0]` → salva → um gerador local
+([`src/lib/explicacao.ts`](src/lib/explicacao.ts)) escreve a explicação em
+linguagem natural. A próxima geração já usa os pesos calibrados.
 
 ## Setup
 
@@ -87,7 +88,7 @@ cp .env.example .env.local
 ```
 
 Preencha `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
-`SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY` e `CRON_SECRET`.
+`SUPABASE_SERVICE_ROLE_KEY` e `CRON_SECRET`.
 
 ### 2. Banco
 
