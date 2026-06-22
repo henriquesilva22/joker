@@ -9,13 +9,15 @@ import type { Estrategia, LoteriaId } from "@/lib/types";
 interface ResBacktest {
   estrategia: Estrategia;
   dezenas_apostadas: number;
+  jogos_equivalentes: number;
+  custo_por_concurso: number;
   media_acertos: number;
   melhor_resultado: number;
   lucro_simulado: number;
 }
 interface Recomendacao {
   dezenas: number;
-  media_acertos: number;
+  justificativa: string;
 }
 
 export default function BacktestingPage() {
@@ -88,13 +90,15 @@ export default function BacktestingPage() {
             {i === 0 && "🥇 "}
             {ROTULO_ESTRATEGIA[r.estrategia]}
           </p>
-          <div className="mt-2 grid grid-cols-2 gap-y-1 text-xs text-slate-300">
-            <span>Dezenas apostadas: <strong>{r.dezenas_apostadas}</strong></span>
-            <span>Melhor: <strong>{r.melhor_resultado}</strong></span>
-            <span>Media de acertos: <strong>{r.media_acertos}</strong></span>
-            <span className={r.lucro_simulado >= 0 ? "text-brand-light" : "text-red-400"}>
-              Lucro simulado: R$ {r.lucro_simulado.toLocaleString("pt-BR")}
-            </span>
+          <div className="mt-2 space-y-1 text-xs text-slate-300">
+            <p>Dezenas apostadas: <strong>{r.dezenas_apostadas}</strong></p>
+            <p>Jogos equivalentes: <strong>{r.jogos_equivalentes.toLocaleString("pt-BR")}</strong></p>
+            <p>Custo por concurso: <strong>R$ {r.custo_por_concurso.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></p>
+            <p>Melhor: <strong>{r.melhor_resultado}</strong></p>
+            <p>Media de acertos: <strong>{r.media_acertos}</strong></p>
+            <p className={r.lucro_simulado >= 0 ? "text-brand-light" : "text-red-400"}>
+              Lucro simulado: <strong>R$ {r.lucro_simulado.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+            </p>
           </div>
         </div>
       ))}
@@ -105,6 +109,7 @@ export default function BacktestingPage() {
           <p className="mt-1 text-lg font-bold text-brand-light">
             Recomendacao: {recomendacao.dezenas} dezenas ⭐
           </p>
+          <p className="mt-2 text-sm text-slate-200">Justificativa: {recomendacao.justificativa}</p>
         </div>
       )}
 

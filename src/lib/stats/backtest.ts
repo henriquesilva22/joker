@@ -1,10 +1,13 @@
 import type { Concurso, Estrategia, Loteria, Pesos } from "../types";
 import { contarAcertos } from "./check";
 import { gerarJogos } from "./generate";
+import { combinacoes } from "./probability";
 
 export interface ResultadoBacktest {
   estrategia: Estrategia;
   dezenas_apostadas: number;
+  jogos_equivalentes: number;
+  custo_por_concurso: number;
   concursos_testados: number;
   media_acertos: number;
   melhor_resultado: number;
@@ -44,6 +47,8 @@ export function rodarBacktest(opts: OpcoesBacktest): ResultadoBacktest {
     (a, b) => a.numero_concurso - b.numero_concurso,
   );
   const premio = opts.premioPorAcerto ?? premioPadrao(loteria);
+  const jogosEquivalentes = jogosSimplesEquivalentes(loteria, dezenas);
+  const custoPorConcurso = Number((jogosEquivalentes * loteria.preco_base).toFixed(2));
 
   const acertos: number[] = [];
   const histograma: Record<number, number> = {};
@@ -70,8 +75,8 @@ export function rodarBacktest(opts: OpcoesBacktest): ResultadoBacktest {
       const a = contarAcertos(jogo.numeros, alvo.numeros_sorteados);
       histograma[a] = (histograma[a] ?? 0) + 1;
       melhorNoConcurso = Math.max(melhorNoConcurso, a);
-      lucro += premio[a] ?? 0;
-      custo += loteria.preco_base;
+      lucro += premioExpandido(premio, loteria, dezenas, a);
+      custo += custoPorConcurso;
     }
     acertos.push(melhorNoConcurso);
     testados++;
@@ -85,6 +90,8 @@ export function rodarBacktest(opts: OpcoesBacktest): ResultadoBacktest {
   return {
     estrategia,
     dezenas_apostadas: dezenas,
+    jogos_equivalentes: jogosEquivalentes,
+    custo_por_concurso: custoPorConcurso,
     concursos_testados: testados,
     media_acertos: Number(media.toFixed(3)),
     melhor_resultado: acertos.length ? Math.max(...acertos) : 0,
@@ -98,9 +105,7 @@ export function rodarBacktest(opts: OpcoesBacktest): ResultadoBacktest {
 
 export interface RecomendacaoDezenas {
   dezenas: number;
-  media_acertos: number;
-  melhor_resultado: number;
-  lucro_simulado: number;
+  justificativa: string;
 }
 
 // IA Adaptativa: varre a faixa de dezenas permitida e descobre qual quantidade
@@ -108,18 +113,49 @@ export interface RecomendacaoDezenas {
 export function melhorDezenasAdaptativa(
   opts: Omit<OpcoesBacktest, "dezenas" | "estrategia"> & { min: number; max: number },
 ): RecomendacaoDezenas {
-  let melhor: RecomendacaoDezenas | null = null;
+  let melhor: { dezenas: number; lucro_simulado: number; media_acertos: number } | null = null;
   for (let d = opts.min; d <= opts.max; d++) {
     const r = rodarBacktest({ ...opts, estrategia: "adaptativo", dezenas: d });
-    const cand: RecomendacaoDezenas = {
+    const cand = {
       dezenas: d,
-      media_acertos: r.media_acertos,
-      melhor_resultado: r.melhor_resultado,
       lucro_simulado: r.lucro_simulado,
+      media_acertos: r.media_acertos,
     };
-    if (!melhor || cand.media_acertos > melhor.media_acertos) melhor = cand;
+    if (
+      !melhor ||
+      cand.lucro_simulado > melhor.lucro_simulado ||
+      (cand.lucro_simulado === melhor.lucro_simulado && cand.media_acertos > melhor.media_acertos)
+    ) {
+      melhor = cand;
+    }
   }
-  return melhor ?? { dezenas: opts.min, media_acertos: 0, melhor_resultado: 0, lucro_simulado: 0 };
+  return {
+    dezenas: melhor?.dezenas ?? opts.min,
+    justificativa: "Melhor lucro historico para esta loteria.",
+  };
+}
+
+function jogosSimplesEquivalentes(loteria: Loteria, dezenas: number): number {
+  return Math.round(combinacoes(dezenas, loteria.qtd_aposta_min));
+}
+
+function premioExpandido(
+  premioPorAcerto: Record<number, number>,
+  loteria: Loteria,
+  dezenas: number,
+  acertosNoJogo: number,
+): number {
+  const errosNoJogo = dezenas - acertosNoJogo;
+  const apostaMinima = loteria.qtd_aposta_min;
+
+  let total = 0;
+  for (const [faixaStr, premio] of Object.entries(premioPorAcerto)) {
+    const faixa = Number(faixaStr);
+    const combinacoesPremiadas =
+      combinacoes(acertosNoJogo, faixa) * combinacoes(errosNoJogo, apostaMinima - faixa);
+    if (combinacoesPremiadas > 0) total += combinacoesPremiadas * premio;
+  }
+  return total;
 }
 
 // Tabela de premio simplificada (valores ilustrativos para lucro simulado).
