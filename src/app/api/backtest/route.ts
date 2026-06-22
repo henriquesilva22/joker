@@ -1,27 +1,25 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { carregarConcursos, carregarPesos } from "@/lib/data";
-import { getLoteria } from "@/lib/lotteries";
-import { rodarBacktest } from "@/lib/stats/backtest";
+import { getLoteria, clampDezenas, faixaDezenas } from "@/lib/lotteries";
+import { rodarBacktest, melhorDezenasAdaptativa } from "@/lib/stats/backtest";
 import type { Estrategia, LoteriaId } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const ESTRATEGIAS: Estrategia[] = [
-  "conservador",
-  "equilibrado",
-  "agressivo",
-  "adaptativo",
-];
+// Estrategias fixas mostradas no ranking (a Adaptativa vira recomendacao).
+const FIXAS: Estrategia[] = ["conservador", "equilibrado", "agressivo"];
 
-// Roda backtest de uma ou de todas as estrategias e salva no ranking.
+// Roda backtest das estrategias na quantidade de dezenas escolhida e
+// recomenda automaticamente a melhor quantidade para a IA Adaptativa.
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const loteriaId = body.loteria as LoteriaId;
     const loteria = getLoteria(loteriaId);
-    const todas = Boolean(body.todas);
+    const faixa = faixaDezenas(loteriaId);
+    const dezenas = clampDezenas(loteriaId, Number(body.dezenas ?? faixa.min));
 
     const sb = createClient();
     const { data: auth } = await sb.auth.getUser();
@@ -35,29 +33,32 @@ export async function POST(req: Request) {
       );
     }
     const pesos = await carregarPesos(sb, loteriaId, userId);
+    const qtdJogos = Number(body.qtdJogos ?? 5);
+    const passo = Number(body.passo ?? 3);
 
-    const lista = todas
-      ? ESTRATEGIAS
-      : [(body.estrategia ?? "equilibrado") as Estrategia];
-
-    const resultados = lista.map((est) =>
-      rodarBacktest({
-        loteria,
-        concursos,
-        pesos,
-        estrategia: est,
-        qtdJogos: Number(body.qtdJogos ?? 5),
-        passo: Number(body.passo ?? 3), // acelera: testa 1 a cada 3 concursos
-      }),
+    const ranking = FIXAS.map((est) =>
+      rodarBacktest({ loteria, concursos, pesos, estrategia: est, qtdJogos, dezenas, passo }),
     );
+
+    // IA Adaptativa: melhor quantidade de dezenas no historico
+    const recomendacao = melhorDezenasAdaptativa({
+      loteria,
+      concursos,
+      pesos,
+      qtdJogos,
+      passo,
+      min: faixa.min,
+      max: faixa.max,
+    });
 
     // persiste no ranking (se logado)
     if (userId) {
       await sb.from("backtests").insert(
-        resultados.map((r) => ({
+        ranking.map((r) => ({
           user_id: userId,
           loteria_id: loteriaId,
           estrategia: r.estrategia,
+          dezenas_apostadas: r.dezenas_apostadas,
           concursos_testados: r.concursos_testados,
           media_acertos: r.media_acertos,
           melhor_resultado: r.melhor_resultado,
@@ -68,8 +69,13 @@ export async function POST(req: Request) {
       );
     }
 
-    resultados.sort((a, b) => b.score - a.score);
-    return NextResponse.json({ loteria: loteriaId, ranking: resultados });
+    ranking.sort((a, b) => b.media_acertos - a.media_acertos);
+    return NextResponse.json({
+      loteria: loteriaId,
+      dezenas,
+      ranking,
+      recomendacao_adaptativa: recomendacao,
+    });
   } catch (e: any) {
     return NextResponse.json({ error: e.message ?? "Erro" }, { status: 500 });
   }

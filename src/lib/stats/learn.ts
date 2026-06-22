@@ -24,6 +24,18 @@ export function aplicarAjuste(
   return novo;
 }
 
+// Soma dois deltas de pesos (ex.: ajuste do sorteio atual + memoria de erros).
+export function combinarDeltas(
+  a: Partial<Pesos>,
+  b: Partial<Pesos>,
+): Partial<Pesos> {
+  const out: Partial<Pesos> = { ...a };
+  for (const k of Object.keys(b) as (keyof Pesos)[]) {
+    out[k] = (out[k] ?? 0) + (b[k] ?? 0);
+  }
+  return out;
+}
+
 // Diferenca legivel entre dois conjuntos de pesos (para UI / logs).
 export function diffPesos(antes: Pesos, depois: Pesos): Record<string, number> {
   const out: Record<string, number> = {};

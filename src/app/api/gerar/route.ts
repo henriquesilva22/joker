@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { carregarConcursos, carregarPesos } from "@/lib/data";
-import { getLoteria } from "@/lib/lotteries";
+import { getLoteria, clampDezenas } from "@/lib/lotteries";
 import { gerarJogos, pesosEfetivos } from "@/lib/stats/generate";
 import { chanceComJogos, chancePrincipal, formatarUmEm } from "@/lib/stats/probability";
+import { qualidadeConjunto } from "@/lib/stats/quality";
+import { concursosSimilares } from "@/lib/stats/similarity";
 import type { Estrategia, LoteriaId, Objetivo } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -17,10 +19,7 @@ export async function POST(req: Request) {
     const objetivo = (body.objetivo ?? "principal") as Objetivo;
 
     const loteria = getLoteria(loteriaId);
-    const qtdDezenas = Math.max(
-      loteria.qtd_aposta_min,
-      Math.min(loteria.qtd_aposta_max, Number(body.dezenas ?? loteria.qtd_aposta_min)),
-    );
+    const qtdDezenas = clampDezenas(loteriaId, Number(body.dezenas ?? loteria.qtd_aposta_min));
 
     const sb = createClient();
     const { data: auth } = await sb.auth.getUser();
@@ -49,6 +48,13 @@ export async function POST(req: Request) {
     const probTotal = chanceComJogos(loteria, qtdDezenas, qtdJogos);
     const ultimoConcurso = concursos[concursos.length - 1]?.numero_concurso ?? 0;
 
+    // Indice de qualidade (0-100) do conjunto + por jogo
+    const numerosPorJogo = jogos.map((j) => j.numeros);
+    const qualidade = qualidadeConjunto(loteria, numerosPorJogo, concursos);
+
+    // Similaridade historica: top 2 concursos parecidos com cada jogo
+    const similares = numerosPorJogo.map((j) => concursosSimilares(j, concursos, 2));
+
     return NextResponse.json({
       loteria: loteria.id,
       concurso_previsto: ultimoConcurso + 1,
@@ -56,6 +62,8 @@ export async function POST(req: Request) {
       objetivo,
       pesos_usados: pesosEfetivos(pesos, estrategia),
       jogos,
+      qualidade,
+      similares,
       chance: {
         por_jogo: formatarUmEm(probUnit),
         combinada: formatarUmEm(probTotal),

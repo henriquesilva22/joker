@@ -107,6 +107,28 @@ export const ROTULO_ESTRATEGIA: Record<Estrategia, string> = {
   adaptativo: "IA Adaptativa",
 };
 
+// Faixa de dezenas apostaveis por loteria (regras de aposta da UI).
+// Fonte unica usada pela tela de gerar, pela geracao e pelo backtest.
+export const FAIXA_DEZENAS: Record<LoteriaId, { min: number; max: number }> = {
+  megasena: { min: 6, max: 15 },
+  lotofacil: { min: 15, max: 20 },
+  lotomania: { min: 50, max: 50 },
+  quina: { min: 5, max: 15 },
+  duplasena: { min: 6, max: 15 },
+  timemania: { min: 10, max: 10 },
+};
+
+export function faixaDezenas(id: LoteriaId): { min: number; max: number; fixo: boolean } {
+  const f = FAIXA_DEZENAS[id];
+  return { ...f, fixo: f.min === f.max };
+}
+
+// Garante que `qtd` esta dentro da faixa permitida da loteria.
+export function clampDezenas(id: LoteriaId, qtd: number): number {
+  const { min, max } = FAIXA_DEZENAS[id];
+  return Math.max(min, Math.min(max, Math.round(qtd)));
+}
+
 export function getLoteria(id: LoteriaId): Loteria {
   const l = LOTERIAS[id];
   if (!l) throw new Error(`Loteria desconhecida: ${id}`);

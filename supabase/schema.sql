@@ -97,6 +97,7 @@ create table if not exists public.backtests (
   user_id             uuid references auth.users(id) on delete cascade,
   loteria_id          text not null references public.loterias(id) on delete cascade,
   estrategia          text not null,
+  dezenas_apostadas   int not null default 0,
   concursos_testados  int not null,
   media_acertos       real not null,
   melhor_resultado    int not null,

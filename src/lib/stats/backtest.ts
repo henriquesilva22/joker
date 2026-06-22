@@ -4,6 +4,7 @@ import { gerarJogos } from "./generate";
 
 export interface ResultadoBacktest {
   estrategia: Estrategia;
+  dezenas_apostadas: number;
   concursos_testados: number;
   media_acertos: number;
   melhor_resultado: number;
@@ -83,6 +84,7 @@ export function rodarBacktest(opts: OpcoesBacktest): ResultadoBacktest {
 
   return {
     estrategia,
+    dezenas_apostadas: dezenas,
     concursos_testados: testados,
     media_acertos: Number(media.toFixed(3)),
     melhor_resultado: acertos.length ? Math.max(...acertos) : 0,
@@ -92,6 +94,32 @@ export function rodarBacktest(opts: OpcoesBacktest): ResultadoBacktest {
     // score: media de acertos normalizada favorece estrategias consistentes
     score: Number((media + (lucro - custo > 0 ? 0.5 : 0)).toFixed(3)),
   };
+}
+
+export interface RecomendacaoDezenas {
+  dezenas: number;
+  media_acertos: number;
+  melhor_resultado: number;
+  lucro_simulado: number;
+}
+
+// IA Adaptativa: varre a faixa de dezenas permitida e descobre qual quantidade
+// teve melhor desempenho historico (walk-forward). Retorna a recomendada.
+export function melhorDezenasAdaptativa(
+  opts: Omit<OpcoesBacktest, "dezenas" | "estrategia"> & { min: number; max: number },
+): RecomendacaoDezenas {
+  let melhor: RecomendacaoDezenas | null = null;
+  for (let d = opts.min; d <= opts.max; d++) {
+    const r = rodarBacktest({ ...opts, estrategia: "adaptativo", dezenas: d });
+    const cand: RecomendacaoDezenas = {
+      dezenas: d,
+      media_acertos: r.media_acertos,
+      melhor_resultado: r.melhor_resultado,
+      lucro_simulado: r.lucro_simulado,
+    };
+    if (!melhor || cand.media_acertos > melhor.media_acertos) melhor = cand;
+  }
+  return melhor ?? { dezenas: opts.min, media_acertos: 0, melhor_resultado: 0, lucro_simulado: 0 };
 }
 
 // Tabela de premio simplificada (valores ilustrativos para lucro simulado).

@@ -5,16 +5,39 @@ import { useSearchParams } from "next/navigation";
 import { Aviso } from "@/components/Aviso";
 import { Bolas } from "@/components/Bolas";
 import { LoteriaSelect } from "@/components/LoteriaSelect";
-import { getLoteria, ROTULO_ESTRATEGIA } from "@/lib/lotteries";
+import { getLoteria, ROTULO_ESTRATEGIA, faixaDezenas } from "@/lib/lotteries";
 import type { Estrategia, LoteriaId, Objetivo } from "@/lib/types";
 
+interface QualidadeJogo {
+  total: number;
+  estrutura: number;
+  tendencia: number;
+  cobertura: number;
+}
+interface Similar {
+  numero_concurso: number;
+  similaridade: number;
+}
 interface RespostaGerar {
   concurso_previsto: number;
   estrategia: Estrategia;
   objetivo: Objetivo;
   jogos: { numeros: number[]; soma: number; pares: number; distribuicao: number[] }[];
+  qualidade: {
+    total: number;
+    media_qualidade: number;
+    diversidade: number;
+    por_jogo: QualidadeJogo[];
+  };
+  similares: Similar[][];
   chance: { por_jogo: string; combinada: string; aviso: string };
   pesos_usados: Record<string, number>;
+}
+
+function corQualidade(n: number): string {
+  if (n >= 75) return "text-brand-light";
+  if (n >= 50) return "text-amber-300";
+  return "text-red-400";
 }
 
 const ESTRATEGIAS: Estrategia[] = ["conservador", "equilibrado", "agressivo", "adaptativo"];
@@ -26,8 +49,9 @@ function GerarInner() {
   const [loteriaId, setLoteriaId] = useState<LoteriaId>(inicial);
   const loteria = getLoteria(loteriaId);
 
+  const faixa = faixaDezenas(loteriaId);
   const [qtdJogos, setQtdJogos] = useState(5);
-  const [dezenas, setDezenas] = useState(loteria.qtd_aposta_min);
+  const [dezenas, setDezenas] = useState(faixa.min);
   const [estrategia, setEstrategia] = useState<Estrategia>("equilibrado");
   const [objetivo, setObjetivo] = useState<Objetivo>("principal");
 
@@ -38,7 +62,7 @@ function GerarInner() {
 
   function trocarLoteria(id: LoteriaId) {
     setLoteriaId(id);
-    setDezenas(getLoteria(id).qtd_aposta_min);
+    setDezenas(faixaDezenas(id).min);
     setResp(null);
     setSalvo(false);
   }
@@ -95,12 +119,6 @@ function GerarInner() {
             className="w-full accent-brand" />
         </Campo>
 
-        <Campo label={`Dezenas por jogo: ${dezenas}`}>
-          <input type="range" min={loteria.qtd_aposta_min} max={loteria.qtd_aposta_max}
-            value={dezenas} onChange={(e) => setDezenas(Number(e.target.value))}
-            className="w-full accent-brand" />
-        </Campo>
-
         <Campo label="Objetivo">
           <div className="grid grid-cols-2 gap-2">
             {(["principal", "parciais"] as Objetivo[]).map((o) => (
@@ -127,6 +145,24 @@ function GerarInner() {
           </div>
         </Campo>
 
+        <Campo
+          label={
+            faixa.fixo
+              ? `Quantidade de dezenas: ${faixa.min} (fixo)`
+              : `Quantidade de dezenas: ${dezenas} (${faixa.min}–${faixa.max})`
+          }
+        >
+          {faixa.fixo ? (
+            <p className="rounded-lg bg-white/5 px-3 py-2 text-sm text-slate-300">
+              Esta loteria usa sempre {faixa.min} dezenas.
+            </p>
+          ) : (
+            <input type="range" min={faixa.min} max={faixa.max}
+              value={dezenas} onChange={(e) => setDezenas(Number(e.target.value))}
+              className="w-full accent-brand" />
+          )}
+        </Campo>
+
         <button className="btn-primary w-full" onClick={gerar} disabled={carregando}>
           {carregando ? "Gerando..." : "Gerar jogos"}
         </button>
@@ -135,21 +171,60 @@ function GerarInner() {
 
       {resp && (
         <div className="space-y-3">
-          <div className="card bg-brand/10 text-sm">
-            <p className="font-semibold">Concurso previsto: {resp.concurso_previsto}</p>
-            <p className="text-slate-300">Chance por jogo: {resp.chance.por_jogo}</p>
-            <p className="text-slate-300">Chance combinada ({qtdJogos} jogos): {resp.chance.combinada}</p>
+          <div className="card bg-brand/10">
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-slate-400">
+                  Qualidade do conjunto
+                </p>
+                <p className={`text-4xl font-extrabold ${corQualidade(resp.qualidade.total)}`}>
+                  {resp.qualidade.total}
+                  <span className="text-lg text-slate-500">/100</span>
+                </p>
+              </div>
+              <div className="text-right text-xs text-slate-300">
+                <p>Concurso previsto: {resp.concurso_previsto}</p>
+                <p>Diversidade: {resp.qualidade.diversidade}/100</p>
+                <p>Chance: {resp.chance.por_jogo}</p>
+              </div>
+            </div>
+            <p className="mt-2 text-[11px] text-slate-400">
+              Nota baseada em estrutura, tendencia, cobertura e diversidade — nao e
+              chance de ganhar.
+            </p>
           </div>
 
-          {resp.jogos.map((j, i) => (
-            <div key={i} className="card space-y-2">
-              <div className="flex items-center justify-between text-xs text-slate-400">
-                <span>Jogo {i + 1}</span>
-                <span>soma {j.soma} · {j.pares} pares · {j.distribuicao.join("-")}</span>
+          {resp.jogos.map((j, i) => {
+            const q = resp.qualidade.por_jogo[i];
+            const sim = resp.similares?.[i] ?? [];
+            return (
+              <div key={i} className="card space-y-2">
+                <div className="flex items-center justify-between text-xs text-slate-400">
+                  <span>Jogo {i + 1}</span>
+                  <span className={`font-bold ${corQualidade(q?.total ?? 0)}`}>
+                    {q?.total ?? 0}/100
+                  </span>
+                </div>
+                <Bolas numeros={j.numeros} />
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
+                  <span>soma {j.soma}</span>
+                  <span>{j.pares} pares</span>
+                  <span>faixas {j.distribuicao.join("-")}</span>
+                  <span>estrut. {q?.estrutura}</span>
+                  <span>tend. {q?.tendencia}</span>
+                  <span>cobert. {q?.cobertura}</span>
+                </div>
+                {sim.length > 0 && (
+                  <p className="text-[11px] text-slate-400">
+                    🔁 parecido com{" "}
+                    {sim
+                      .map((s) => `conc. ${s.numero_concurso} (${s.similaridade}%)`)
+                      .join(" · ")}
+                  </p>
+                )}
               </div>
-              <Bolas numeros={j.numeros} />
-            </div>
-          ))}
+            );
+          })}
 
           <button className="btn-ghost w-full" onClick={salvar} disabled={salvo}>
             {salvo ? "✅ Jogos salvos" : "Salvar previsao"}

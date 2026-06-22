@@ -3,7 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { carregarConcursos, carregarPesos, salvarPesos } from "@/lib/data";
 import { getLoteria } from "@/lib/lotteries";
 import { conferir } from "@/lib/stats/check";
-import { aplicarAjuste, diffPesos } from "@/lib/stats/learn";
+import { aplicarAjuste, combinarDeltas, diffPesos } from "@/lib/stats/learn";
+import { ajusteDaMemoria, resumirMemoria } from "@/lib/stats/memoria";
 import { explicarAnalise } from "@/lib/explicacao";
 import type { LoteriaId } from "@/lib/types";
 
@@ -60,9 +61,28 @@ export async function POST(req: Request) {
       prev.pesos_usados,
     );
 
-    // ----- Aprendizado: ajusta os pesos do usuario -----
+    // ----- Memoria de erros: olha as ultimas falhas para corrigir vieses -----
+    const { data: historicoErros } = await sb
+      .from("resultados_previsoes")
+      .select("analise_erro, previsoes!inner(loteria_id, user_id)")
+      .eq("previsoes.loteria_id", loteria.id)
+      .eq("previsoes.user_id", auth.user.id)
+      .order("conferido_em", { ascending: false })
+      .limit(50);
+
+    const analises = [
+      conf.analise_erro,
+      ...((historicoErros ?? [])
+        .map((r: any) => r.analise_erro)
+        .filter(Boolean) as typeof conf.analise_erro[]),
+    ];
+    const memoria = resumirMemoria(analises);
+    const ajusteMemoria = ajusteDaMemoria(memoria);
+
+    // ----- Aprendizado: combina ajuste do sorteio atual + memoria -----
     const pesosAtuais = await carregarPesos(sb, loteria.id, auth.user.id);
-    const pesosNovos = aplicarAjuste(pesosAtuais, conf.ajuste_sugerido);
+    const deltaCombinado = combinarDeltas(conf.ajuste_sugerido, ajusteMemoria);
+    const pesosNovos = aplicarAjuste(pesosAtuais, deltaCombinado);
     await salvarPesos(sb, loteria.id, auth.user.id, pesosNovos);
     const delta = diffPesos(pesosAtuais, pesosNovos);
 
@@ -99,6 +119,7 @@ export async function POST(req: Request) {
       ajuste_aplicado: delta,
       pesos_novos: pesosNovos,
       explicacao_ia: explicacao,
+      memoria: { amostras: memoria.amostras, ajuste: ajusteMemoria },
     });
   } catch (e: any) {
     return NextResponse.json({ error: e.message ?? "Erro" }, { status: 500 });
