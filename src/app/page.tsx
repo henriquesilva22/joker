@@ -54,14 +54,18 @@ export default function Dashboard() {
         </div>
       </section>
 
-      <section className="grid grid-cols-2 gap-3">
+      <section className="grid grid-cols-3 gap-3">
         <Link href="/jogos" className="card text-center">
           <span className="text-2xl">🎟️</span>
-          <p className="mt-1 text-sm font-semibold">Meus jogos</p>
+          <p className="mt-1 text-xs font-semibold">Meus jogos</p>
+        </Link>
+        <Link href="/conferir" className="card text-center">
+          <span className="text-2xl">🔎</span>
+          <p className="mt-1 text-xs font-semibold">Conferidor</p>
         </Link>
         <Link href="/backtesting" className="card text-center">
           <span className="text-2xl">📊</span>
-          <p className="mt-1 text-sm font-semibold">Backtesting</p>
+          <p className="mt-1 text-xs font-semibold">Backtesting</p>
         </Link>
       </section>
     </div>
