@@ -58,6 +58,9 @@ export async function POST(req: Request) {
     const numeros: number[] = Array.isArray(body.numeros_sorteados)
       ? body.numeros_sorteados.map((n: unknown) => Number(n))
       : [];
+    const premio =
+      body.premio === "" || body.premio == null ? null : Number(body.premio);
+    const acumulado = Boolean(body.acumulado);
 
     // ----- Validacao -----
     if (!Number.isInteger(numeroConcurso) || numeroConcurso <= 0) {
@@ -85,6 +88,9 @@ export async function POST(req: Request) {
     if (new Set(numeros).size !== numeros.length) {
       return NextResponse.json({ error: "Nao repita numeros." }, { status: 400 });
     }
+    if (premio !== null && (!Number.isFinite(premio) || premio < 0)) {
+      return NextResponse.json({ error: "Valor do premio invalido." }, { status: 400 });
+    }
 
     const sorteados = [...numeros].sort((a, b) => a - b);
 
@@ -98,6 +104,8 @@ export async function POST(req: Request) {
         numero_concurso: numeroConcurso,
         data_sorteio: dataSorteio,
         numeros_sorteados: sorteados,
+        premio_principal: premio,
+        acumulado,
       },
       { onConflict: "loteria_id,numero_concurso" },
     );
@@ -179,6 +187,8 @@ export async function POST(req: Request) {
       loteria: loteriaId,
       loteria_nome: loteria.nome,
       numeros_sorteados: sorteados,
+      premio_principal: premio,
+      acumulado,
       previsoes_conferidas: previsoes?.length ?? 0,
       jogos_premiados: jogosPremiados,
       melhor_acerto: melhorAcertoGeral,

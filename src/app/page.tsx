@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Aviso } from "@/components/Aviso";
 import { AuthButton } from "@/components/AuthButton";
+import { AdminLink } from "@/components/AdminLink";
 import { LISTA_LOTERIAS } from "@/lib/lotteries";
 import { formatarUmEm, chancePrincipal } from "@/lib/stats/probability";
 
@@ -21,6 +22,8 @@ export default function Dashboard() {
       </header>
 
       <Aviso />
+
+      <AdminLink />
 
       <Link href="/gerar" className="block">
         <div className="card flex items-center justify-between bg-brand/20">

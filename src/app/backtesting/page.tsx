@@ -11,10 +11,16 @@ interface ResBacktest {
   dezenas_apostadas: number;
   jogos_equivalentes: number;
   custo_por_concurso: number;
+  concursos_testados: number;
   media_acertos: number;
   melhor_resultado: number;
-  lucro_simulado: number;
+  investimento_total: number;
+  premios_recebidos: number;
+  lucro_liquido: number;
 }
+
+const brl = (v: number) =>
+  v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 interface Recomendacao {
   dezenas: number;
   justificativa: string;
@@ -91,13 +97,13 @@ export default function BacktestingPage() {
             {ROTULO_ESTRATEGIA[r.estrategia]}
           </p>
           <div className="mt-2 space-y-1 text-xs text-slate-300">
-            <p>Dezenas apostadas: <strong>{r.dezenas_apostadas}</strong></p>
-            <p>Jogos equivalentes: <strong>{r.jogos_equivalentes.toLocaleString("pt-BR")}</strong></p>
-            <p>Custo por concurso: <strong>R$ {r.custo_por_concurso.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></p>
-            <p>Melhor: <strong>{r.melhor_resultado}</strong></p>
-            <p>Media de acertos: <strong>{r.media_acertos}</strong></p>
-            <p className={r.lucro_simulado >= 0 ? "text-brand-light" : "text-red-400"}>
-              Lucro simulado: <strong>R$ {r.lucro_simulado.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+            <p>Dezenas apostadas: <strong>{r.dezenas_apostadas}</strong> ({r.jogos_equivalentes.toLocaleString("pt-BR")} jogos equiv.)</p>
+            <p>Media de acertos: <strong>{r.media_acertos}</strong> · Melhor: <strong>{r.melhor_resultado}</strong></p>
+            <p>Custo por concurso: R$ {brl(r.custo_por_concurso)} × {r.concursos_testados} concursos</p>
+            <p>Investimento total: <strong>R$ {brl(r.investimento_total)}</strong></p>
+            <p>Premios recebidos: <strong>R$ {brl(r.premios_recebidos)}</strong></p>
+            <p className={r.lucro_liquido >= 0 ? "text-brand-light" : "text-red-400"}>
+              Lucro liquido: <strong>R$ {brl(r.lucro_liquido)}</strong>
             </p>
           </div>
         </div>

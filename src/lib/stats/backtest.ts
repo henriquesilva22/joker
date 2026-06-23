@@ -12,7 +12,10 @@ export interface ResultadoBacktest {
   media_acertos: number;
   melhor_resultado: number;
   pior_resultado: number;
-  lucro_simulado: number;
+  investimento_total: number;   // concursos_testados * custo_por_concurso
+  premios_recebidos: number;    // soma dos premios de 1 aposta por concurso
+  lucro_liquido: number;        // premios_recebidos - investimento_total
+  lucro_simulado: number;       // alias de lucro_liquido (compat.)
   acertos_por_faixa: Record<number, number>; // histograma de acertos
   score: number; // metrica agregada para o modo adaptativo / ranking
 }
@@ -52,8 +55,7 @@ export function rodarBacktest(opts: OpcoesBacktest): ResultadoBacktest {
 
   const acertos: number[] = [];
   const histograma: Record<number, number> = {};
-  let lucro = 0;
-  let custo = 0;
+  let premiosRecebidos = 0;
   let testados = 0;
 
   for (let i = janelaMin; i < ordenados.length; i += passo) {
@@ -70,14 +72,22 @@ export function rodarBacktest(opts: OpcoesBacktest): ResultadoBacktest {
       seed: 1000 + i, // determinismo por concurso
     });
 
+    // Histograma e melhor acerto consideram todos os jogos gerados.
     let melhorNoConcurso = 0;
     for (const jogo of jogos) {
       const a = contarAcertos(jogo.numeros, alvo.numeros_sorteados);
       histograma[a] = (histograma[a] ?? 0) + 1;
       melhorNoConcurso = Math.max(melhorNoConcurso, a);
-      lucro += premioExpandido(premio, loteria, dezenas, a);
-      custo += custoPorConcurso;
     }
+
+    // Financeiro: UMA aposta de `dezenas` dezenas por concurso.
+    // (antes o custo/premio eram multiplicados por qtdJogos -> prejuizo inflado)
+    const apostaFin = jogos[0];
+    if (apostaFin) {
+      const acertosFin = contarAcertos(apostaFin.numeros, alvo.numeros_sorteados);
+      premiosRecebidos += premioExpandido(premio, loteria, dezenas, acertosFin);
+    }
+
     acertos.push(melhorNoConcurso);
     testados++;
   }
@@ -86,6 +96,10 @@ export function rodarBacktest(opts: OpcoesBacktest): ResultadoBacktest {
     acertos.length > 0
       ? acertos.reduce((a, b) => a + b, 0) / acertos.length
       : 0;
+
+  const investimentoTotal = Number((testados * custoPorConcurso).toFixed(2));
+  const premios = Number(premiosRecebidos.toFixed(2));
+  const lucroLiquido = Number((premios - investimentoTotal).toFixed(2));
 
   return {
     estrategia,
@@ -96,10 +110,13 @@ export function rodarBacktest(opts: OpcoesBacktest): ResultadoBacktest {
     media_acertos: Number(media.toFixed(3)),
     melhor_resultado: acertos.length ? Math.max(...acertos) : 0,
     pior_resultado: acertos.length ? Math.min(...acertos) : 0,
-    lucro_simulado: Number((lucro - custo).toFixed(2)),
+    investimento_total: investimentoTotal,
+    premios_recebidos: premios,
+    lucro_liquido: lucroLiquido,
+    lucro_simulado: lucroLiquido,
     acertos_por_faixa: histograma,
     // score: media de acertos normalizada favorece estrategias consistentes
-    score: Number((media + (lucro - custo > 0 ? 0.5 : 0)).toFixed(3)),
+    score: Number((media + (lucroLiquido > 0 ? 0.5 : 0)).toFixed(3)),
   };
 }
 

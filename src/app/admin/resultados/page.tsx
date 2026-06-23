@@ -34,6 +34,8 @@ export default function AdminResultadosPage() {
 
   const [concurso, setConcurso] = useState("");
   const [data, setData] = useState("");
+  const [premio, setPremio] = useState("");
+  const [acumulado, setAcumulado] = useState(false);
   const [sel, setSel] = useState<number[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
@@ -84,6 +86,8 @@ export default function AdminResultadosPage() {
           loteria: loteriaId,
           numero_concurso: Number(concurso),
           data_sorteio: data,
+          premio: premio === "" ? null : Number(premio),
+          acumulado,
           numeros_sorteados: sel,
         }),
       });
@@ -149,6 +153,27 @@ export default function AdminResultadosPage() {
               onChange={(e) => setData(e.target.value)}
               className="w-full rounded-lg bg-white/5 px-3 py-2.5 outline-none ring-1 ring-white/10 focus:ring-brand"
             />
+          </label>
+          <label className="block space-y-1.5">
+            <span className="text-xs text-slate-400">Valor do premio (R$)</span>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={premio}
+              onChange={(e) => setPremio(e.target.value)}
+              placeholder="opcional"
+              className="w-full rounded-lg bg-white/5 px-3 py-2.5 outline-none ring-1 ring-white/10 focus:ring-brand"
+            />
+          </label>
+          <label className="flex items-center gap-2 self-end pb-2.5 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={acumulado}
+              onChange={(e) => setAcumulado(e.target.checked)}
+              className="h-4 w-4 accent-brand"
+            />
+            Acumulou
           </label>
         </div>
 
