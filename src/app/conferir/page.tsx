@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Aviso } from "@/components/Aviso";
 import { Bolas } from "@/components/Bolas";
 import { LoteriaSelect } from "@/components/LoteriaSelect";
+import { PasteNumbersButton } from "@/components/PasteNumbersButton";
 import { getLoteria, faixaDezenas } from "@/lib/lotteries";
 import type { LoteriaId } from "@/lib/types";
 
@@ -144,11 +145,23 @@ export default function ConferirPage() {
           <span className={sel.length === alvo ? "text-brand-light" : "text-slate-400"}>
             {sel.length}/{alvo} selecionados
           </span>
-          {sel.length > 0 && (
-            <button onClick={() => setSel([])} className="text-xs text-slate-400 hover:text-slate-200">
-              Limpar
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            <PasteNumbersButton
+              min={loteria.numero_min}
+              max={loteria.numero_max}
+              esperado={alvo}
+              onApply={(nums) => {
+                setSel(nums);
+                setResp(null);
+                setErro("");
+              }}
+            />
+            {sel.length > 0 && (
+              <button onClick={() => setSel([])} className="text-xs text-slate-400 hover:text-slate-200">
+                Limpar
+              </button>
+            )}
+          </div>
         </div>
 
         <button
