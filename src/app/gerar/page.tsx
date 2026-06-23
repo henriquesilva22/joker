@@ -5,7 +5,9 @@ import { useSearchParams } from "next/navigation";
 import { Aviso } from "@/components/Aviso";
 import { Bolas } from "@/components/Bolas";
 import { LoteriaSelect } from "@/components/LoteriaSelect";
+import { PasteNumbers } from "@/components/PasteNumbers";
 import { getLoteria, ROTULO_ESTRATEGIA, faixaDezenas } from "@/lib/lotteries";
+import { createClient } from "@/lib/supabase/client";
 import type { Estrategia, LoteriaId, Objetivo } from "@/lib/types";
 
 interface QualidadeJogo {
@@ -60,11 +62,73 @@ function GerarInner() {
   const [erro, setErro] = useState("");
   const [salvo, setSalvo] = useState(false);
 
+  // Selecao manual de dezenas (montar/colar o proprio jogo)
+  const [manualSel, setManualSel] = useState<number[]>([]);
+  const [manualMsg, setManualMsg] = useState("");
+  const [salvandoManual, setSalvandoManual] = useState(false);
+
   function trocarLoteria(id: LoteriaId) {
     setLoteriaId(id);
     setDezenas(faixaDezenas(id).min);
     setResp(null);
     setSalvo(false);
+    setManualSel([]);
+    setManualMsg("");
+  }
+
+  function alterarDezenas(v: number) {
+    setDezenas(v);
+    setManualSel((s) => s.slice(0, v)); // mantem a selecao manual dentro do alvo
+  }
+
+  function toggleManual(n: number) {
+    setManualMsg("");
+    setManualSel((atual) =>
+      atual.includes(n)
+        ? atual.filter((x) => x !== n)
+        : atual.length < dezenas
+          ? [...atual, n]
+          : atual,
+    );
+  }
+
+  // Salva o jogo montado manualmente como uma previsao (estrategia "manual").
+  async function salvarManual() {
+    setManualMsg("");
+    setSalvandoManual(true);
+    try {
+      const sb = createClient();
+      const { data: ultimo } = await sb
+        .from("concursos")
+        .select("numero_concurso")
+        .eq("loteria_id", loteriaId)
+        .order("numero_concurso", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const concursoPrevisto = (ultimo?.numero_concurso ?? 0) + 1;
+
+      const r = await fetch("/api/previsoes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          loteria: loteriaId,
+          concurso_previsto: concursoPrevisto,
+          jogos: [[...manualSel].sort((a, b) => a - b)],
+          estrategia: "manual",
+          objetivo,
+          pesos_usados: {},
+        }),
+      });
+      if (r.ok) {
+        setManualMsg("✅ Jogo salvo em Meus jogos.");
+        setManualSel([]);
+      } else if (r.status === 401) setManualMsg("Faca login para salvar.");
+      else setManualMsg("Nao foi possivel salvar.");
+    } catch {
+      setManualMsg("Nao foi possivel salvar.");
+    } finally {
+      setSalvandoManual(false);
+    }
   }
 
   async function gerar() {
@@ -158,7 +222,7 @@ function GerarInner() {
             </p>
           ) : (
             <input type="range" min={faixa.min} max={faixa.max}
-              value={dezenas} onChange={(e) => setDezenas(Number(e.target.value))}
+              value={dezenas} onChange={(e) => alterarDezenas(Number(e.target.value))}
               className="w-full accent-brand" />
           )}
         </Campo>
@@ -231,6 +295,62 @@ function GerarInner() {
           </button>
         </div>
       )}
+
+      {/* ---------- MONTAR MEU JOGO (selecao manual + colar) ---------- */}
+      <div className="card space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-semibold">Montar meu jogo</p>
+            <p className="text-[11px] text-slate-400">
+              Selecione ou cole suas dezenas — {manualSel.length}/{dezenas}
+            </p>
+          </div>
+          <PasteNumbers
+            min={loteria.numero_min}
+            max={loteria.numero_max}
+            esperado={dezenas}
+            onApply={(nums) => {
+              setManualSel(nums);
+              setManualMsg("");
+            }}
+          />
+        </div>
+
+        <div className="grid grid-cols-10 gap-1.5">
+          {Array.from(
+            { length: loteria.numero_max - loteria.numero_min + 1 },
+            (_, i) => loteria.numero_min + i,
+          ).map((n) => {
+            const ativo = manualSel.includes(n);
+            const cheio = manualSel.length >= dezenas && !ativo;
+            return (
+              <button
+                key={n}
+                onClick={() => toggleManual(n)}
+                disabled={cheio}
+                className={`aspect-square rounded-md text-xs font-bold transition ${
+                  ativo
+                    ? "bg-brand text-white"
+                    : cheio
+                      ? "bg-white/5 text-slate-600"
+                      : "bg-white/10 text-slate-200 hover:bg-white/20"
+                }`}
+              >
+                {String(n).padStart(2, "0")}
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          className="btn-primary w-full"
+          onClick={salvarManual}
+          disabled={manualSel.length !== dezenas || salvandoManual}
+        >
+          {salvandoManual ? "Salvando..." : "Salvar meu jogo"}
+        </button>
+        {manualMsg && <p className="text-sm text-brand-light">{manualMsg}</p>}
+      </div>
     </div>
   );
 }

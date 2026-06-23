@@ -11,15 +11,16 @@ interface Props {
   label?: string;
 }
 
-const PLACEHOLDER = `Cole os numeros aqui. Ex:
+const PLACEHOLDER = `Cole seus numeros aqui. Ex:
 03, 05, 06, 09, 11, 12, 14, 16, 18, 20, 21, 22, 23, 24, 25
 03 05 06 09 11
 03-05-06-09-11
 03 -> 05 -> 06 -> 09 -> 11`;
 
-// Botao discreto "Colar" + modal com textarea. Reutilizavel em qualquer
-// selecao manual de dezenas (Conferidor, Admin, etc.).
-export function PasteNumbersButton({ min, max, esperado, onApply, label = "Colar" }: Props) {
+// Componente UNICO e reutilizavel de "Colar numeros".
+// Usado em TODAS as telas com selecao manual de dezenas
+// (Conferidor, Gerador, Admin e futuras telas).
+export function PasteNumbers({ min, max, esperado, onApply, label = "Colar" }: Props) {
   const [aberto, setAberto] = useState(false);
   const [texto, setTexto] = useState("");
   const [erro, setErro] = useState("");

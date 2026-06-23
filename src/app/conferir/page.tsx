@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Aviso } from "@/components/Aviso";
 import { Bolas } from "@/components/Bolas";
 import { LoteriaSelect } from "@/components/LoteriaSelect";
-import { PasteNumbersButton } from "@/components/PasteNumbersButton";
+import { PasteNumbers } from "@/components/PasteNumbers";
 import { getLoteria, faixaDezenas } from "@/lib/lotteries";
 import type { LoteriaId } from "@/lib/types";
 
@@ -146,7 +146,7 @@ export default function ConferirPage() {
             {sel.length}/{alvo} selecionados
           </span>
           <div className="flex items-center gap-3">
-            <PasteNumbersButton
+            <PasteNumbers
               min={loteria.numero_min}
               max={loteria.numero_max}
               esperado={alvo}

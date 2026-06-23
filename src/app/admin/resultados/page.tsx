@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Bolas } from "@/components/Bolas";
 import { LoteriaSelect } from "@/components/LoteriaSelect";
-import { PasteNumbersButton } from "@/components/PasteNumbersButton";
+import { PasteNumbers } from "@/components/PasteNumbers";
 import { getLoteria } from "@/lib/lotteries";
 import { createClient } from "@/lib/supabase/client";
 import type { LoteriaId } from "@/lib/types";
@@ -319,7 +319,7 @@ export default function AdminResultadosPage() {
             <p className="text-xs text-slate-400">
               Numeros sorteados — {sel.length}/{alvo} ({loteria.numero_min}–{loteria.numero_max})
             </p>
-            <PasteNumbersButton
+            <PasteNumbers
               min={loteria.numero_min}
               max={loteria.numero_max}
               esperado={alvo}
