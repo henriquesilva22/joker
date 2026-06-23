@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 
 // Rotas que exigem login. As demais (home, gerar, backtesting, estatisticas)
 // permanecem publicas.
-const ROTAS_PROTEGIDAS = ["/jogos", "/previsoes", "/historico", "/dashboard"];
+const ROTAS_PROTEGIDAS = ["/jogos", "/previsoes", "/historico", "/dashboard", "/admin"];
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });

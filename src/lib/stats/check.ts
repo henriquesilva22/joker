@@ -8,7 +8,7 @@ import type {
 import { calcularFeatures, faixaIndice } from "./features";
 
 // Faixas de premiacao por loteria: minimo de acertos que paga.
-const PREMIA_A_PARTIR_DE: Record<string, number> = {
+export const PREMIA_A_PARTIR_DE: Record<string, number> = {
   megasena: 4,    // quadra
   lotofacil: 11,
   lotomania: 15,  // (alem de 0 acertos) - simplificado

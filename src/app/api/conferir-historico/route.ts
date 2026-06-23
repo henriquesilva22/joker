@@ -1,39 +1,55 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getLoteria, faixaDezenas } from "@/lib/lotteries";
+import { PREMIA_A_PARTIR_DE } from "@/lib/stats/check";
+import type { LoteriaId } from "@/lib/types";
 
 export const runtime = "nodejs";
 
-// Conferidor Historico (Lotofacil): compara um jogo de 15 dezenas com TODOS
-// os concursos salvos e retorna onde teria feito 11+ acertos. Logica 100% local.
-const LOTERIA = "lotofacil";
-const QTD_DEZENAS = 15;
-const MIN_PREMIO = 11; // Lotofacil paga a partir de 11 acertos
-
+// Conferidor Historico (todas as loterias): compara um jogo com TODOS os
+// concursos salvos da loteria escolhida e mostra onde teria sido premiado.
+// Logica 100% local, sem API externa.
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    const loteriaId = body.loteria as LoteriaId;
+
+    let loteria;
+    try {
+      loteria = getLoteria(loteriaId);
+    } catch {
+      return NextResponse.json({ error: "Loteria invalida." }, { status: 400 });
+    }
+
     const numeros: number[] = Array.isArray(body.numeros)
       ? body.numeros.map((n: unknown) => Number(n))
       : [];
+    const faixa = faixaDezenas(loteriaId);
+    const minPremio = PREMIA_A_PARTIR_DE[loteriaId] ?? loteria.qtd_sorteada;
 
-    // ----- Validacao -----
-    if (numeros.length !== QTD_DEZENAS) {
+    // ----- Validacao adaptada a loteria -----
+    if (numeros.length < faixa.min || numeros.length > faixa.max) {
       return NextResponse.json(
-        { error: `Informe exatamente ${QTD_DEZENAS} numeros.` },
+        {
+          error: faixa.fixo
+            ? `Informe exatamente ${faixa.min} numeros.`
+            : `Informe entre ${faixa.min} e ${faixa.max} numeros.`,
+        },
         { status: 400 },
       );
     }
-    if (numeros.some((n) => !Number.isInteger(n) || n < 1 || n > 25)) {
+    if (
+      numeros.some(
+        (n) => !Number.isInteger(n) || n < loteria.numero_min || n > loteria.numero_max,
+      )
+    ) {
       return NextResponse.json(
-        { error: "Todos os numeros devem estar entre 1 e 25." },
+        { error: `Numeros devem estar entre ${loteria.numero_min} e ${loteria.numero_max}.` },
         { status: 400 },
       );
     }
-    if (new Set(numeros).size !== QTD_DEZENAS) {
-      return NextResponse.json(
-        { error: "Nao repita numeros." },
-        { status: 400 },
-      );
+    if (new Set(numeros).size !== numeros.length) {
+      return NextResponse.json({ error: "Nao repita numeros." }, { status: 400 });
     }
 
     const jogo = new Set(numeros);
@@ -42,21 +58,21 @@ export async function POST(req: Request) {
     const { data, error } = await sb
       .from("concursos")
       .select("numero_concurso, data_sorteio, numeros_sorteados")
-      .eq("loteria_id", LOTERIA)
+      .eq("loteria_id", loteriaId)
       .order("numero_concurso", { ascending: false });
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     const concursos = data ?? [];
     const premiacoes = [];
+    let maiorAcerto = 0;
 
     for (const c of concursos) {
       const sorteados = c.numeros_sorteados as number[];
       const acertados = sorteados.filter((n) => jogo.has(n));
       const acertos = acertados.length;
-      if (acertos >= MIN_PREMIO) {
+      if (acertos > maiorAcerto) maiorAcerto = acertos;
+      if (acertos >= minPremio) {
         premiacoes.push({
           numero_concurso: c.numero_concurso,
           data_sorteio: c.data_sorteio,
@@ -72,16 +88,12 @@ export async function POST(req: Request) {
       (a, b) => b.acertos - a.acertos || b.numero_concurso - a.numero_concurso,
     );
 
-    // resumo por faixa de acertos (11,12,13,14,15)
-    const resumo: Record<number, number> = {};
-    for (const p of premiacoes) resumo[p.acertos] = (resumo[p.acertos] ?? 0) + 1;
-
     return NextResponse.json({
+      loteria: loteriaId,
       jogo: numeros.slice().sort((a, b) => a - b),
-      total_concursos: concursos.length,
-      total_premiacoes: premiacoes.length,
-      melhor_acerto: premiacoes.length ? premiacoes[0].acertos : 0,
-      resumo,
+      concursos_analisados: concursos.length,
+      maior_acerto: maiorAcerto,
+      concursos_premiados: premiacoes.length,
       premiacoes,
     });
   } catch (e: any) {
